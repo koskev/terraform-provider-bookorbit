@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -16,8 +15,10 @@ var _ provider.Provider = (*bookorbitProvider)(nil)
 type (
 	bookorbitProvider struct{}
 
-	bookrobitProviderModel struct {
-		Url types.String `tfsdk:"url"`
+	bookrobitProviderData struct {
+		Url      types.String `tfsdk:"url"`
+		Username types.String `tfsdk:"username"`
+		Password types.String `tfsdk:"password"`
 	}
 )
 
@@ -29,7 +30,7 @@ func New() func() provider.Provider {
 
 func (p *bookorbitProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
 	// Das konfigurierte Model aus dem Request holen
-	var config bookrobitProviderModel
+	var config bookrobitProviderData
 	diags := req.Config.Get(ctx, &config)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -43,7 +44,7 @@ func (p *bookorbitProvider) Configure(ctx context.Context, req provider.Configur
 		)
 		return
 	}
-	resp.ResourceData = strings.Trim(config.Url.String(), "\"")
+	resp.ResourceData = config
 }
 
 func (p *bookorbitProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -57,6 +58,7 @@ func (p *bookorbitProvider) DataSources(ctx context.Context) []func() datasource
 func (p *bookorbitProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewResource,
+		NewSetupResource,
 	}
 }
 
@@ -65,6 +67,13 @@ func (p *bookorbitProvider) Schema(ctx context.Context, req provider.SchemaReque
 		Attributes: map[string]schema.Attribute{
 			"url": schema.StringAttribute{
 				Required: true,
+			},
+			"username": schema.StringAttribute{
+				Optional: true,
+			},
+			"password": schema.StringAttribute{
+				Optional:  true,
+				Sensitive: true,
 			},
 		},
 	}

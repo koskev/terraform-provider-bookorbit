@@ -100,7 +100,7 @@ func (e *OIDCProvider) Create(ctx context.Context, req resource.CreateRequest, r
 		resp.Diagnostics.AddError("Marshalling data", fmt.Sprintf("%v", err))
 		return
 	}
-	respBody, err := e.client.SendRequest("POST", PROVIDER_ENDPOINT, marshalledData)
+	respBody, err := e.client.SendAuthenticatedRequest("POST", PROVIDER_ENDPOINT, marshalledData)
 	if err != nil {
 		resp.Diagnostics.AddError("Creating oidc provider",
 			fmt.Sprintf("%v: %s\n", err, respBody))
@@ -161,7 +161,7 @@ func (e *OIDCProvider) Update(ctx context.Context, req resource.UpdateRequest, r
 		resp.Diagnostics.AddError("Marshalling data", fmt.Sprintf("%v", err))
 		return
 	}
-	respBody, err := e.client.SendRequest("PUT",
+	respBody, err := e.client.SendAuthenticatedRequest("PUT",
 		fmt.Sprintf("%s/%s", PROVIDER_ENDPOINT, data.Name.ValueString()), marshalledData)
 	if err != nil {
 		resp.Diagnostics.AddError("Updating oidc provider",
@@ -184,7 +184,7 @@ func (e *OIDCProvider) Delete(ctx context.Context, req resource.DeleteRequest, r
 	}
 
 	// Delete resource using 3rd party API.
-	respBody, err := e.client.SendRequest("DELETE",
+	respBody, err := e.client.SendAuthenticatedRequest("DELETE",
 		fmt.Sprintf("%s/%s", PROVIDER_ENDPOINT, data.Name.ValueString()), nil)
 	if err != nil {
 		resp.Diagnostics.AddError("Deleting oidc provider",
@@ -198,7 +198,7 @@ func (e *OIDCProvider) Configure(ctx context.Context, req resource.ConfigureRequ
 		return
 	}
 
-	url, ok := req.ProviderData.(string)
+	config, ok := req.ProviderData.(bookrobitProviderData)
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unknown type in url",
@@ -207,5 +207,5 @@ func (e *OIDCProvider) Configure(ctx context.Context, req resource.ConfigureRequ
 		return
 	}
 
-	e.client = bookrobitnet.New(url)
+	e.client = bookrobitnet.New(config.Url.ValueString(), config.Username.ValueString(), config.Password.ValueString(), true)
 }
