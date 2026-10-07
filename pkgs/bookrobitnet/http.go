@@ -76,13 +76,8 @@ func (c *BookorbitClient) SendRequest(method string, endpoint string, body []byt
 		return "", fmt.Errorf("creating request: %w", err)
 	}
 
-	token, err := c.Token()
-	if err != nil {
-		return "", fmt.Errorf("getting token: %w", err)
-	}
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 
 	return c.SendHTTPRequest(req)
 }
