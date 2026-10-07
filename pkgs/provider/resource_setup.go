@@ -18,6 +18,7 @@ type Setup struct {
 	client bookrobitnet.BookorbitClient
 }
 
+// TODO: This should probably just be a user resource that calls setup if required?
 func NewSetupResource() resource.Resource {
 	return &Setup{}
 }
@@ -43,7 +44,7 @@ func (e *Setup) Schema(ctx context.Context, req resource.SchemaRequest, resp *re
 				Required:  true,
 				Sensitive: true,
 			},
-			"setup_done": schema.StringAttribute{
+			"setup_done": schema.BoolAttribute{
 				Computed: true,
 			},
 		},
@@ -98,6 +99,7 @@ func (e *Setup) Create(ctx context.Context, req resource.CreateRequest, resp *re
 			fmt.Sprintf("%v: %s\n", err, respBody))
 		return
 	}
+	data.SetupDone = types.BoolValue(true)
 
 	diags = resp.State.Set(ctx, &data)
 	resp.Diagnostics.Append(diags...)
@@ -147,26 +149,11 @@ func (e *Setup) Update(ctx context.Context, req resource.UpdateRequest, resp *re
 		return
 	}
 
-	// Update resource using 3rd party API.
-	bookData := fromProviderData(data)
-	bookData.Slug = "" // We don't want the slug here since it is already in the url
-	marshalledData, err := json.Marshal(bookData)
-	if err != nil {
-		resp.Diagnostics.AddError("Marshalling data", fmt.Sprintf("%v", err))
-		return
-	}
-	respBody, err := e.client.SendAuthenticatedRequest("PUT",
-		fmt.Sprintf("%s/%s", PROVIDER_ENDPOINT, data.Name.ValueString()), marshalledData)
-	if err != nil {
-		resp.Diagnostics.AddError("Updating oidc provider",
-			fmt.Sprintf("%v: %s\nReq %+v", err, respBody, string(marshalledData)))
-		return
-	}
-
 	diags = resp.State.Set(ctx, &data)
 	resp.Diagnostics.Append(diags...)
 }
 
+// There is no "unsetup"
 func (e *Setup) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
 	var data oidcProviderData
 
