@@ -78,6 +78,9 @@ func (c *BookorbitClient) SendRequest(method string, endpoint string, body []byt
 
 	req.Header.Set("Accept", "*/*")
 	req.Header.Set("Content-Type", "application/json")
+	for key, value := range additional_headers {
+		req.Header.Set(key, value)
+	}
 
 	return c.SendHTTPRequest(req)
 }
