@@ -1,11 +1,10 @@
 package provider
 
 import (
+	"bookorbit-provider/pkgs/bookrobitnet"
 	"context"
 	"encoding/json"
 	"fmt"
-
-	"bookorbit-provider/pkgs/bookrobitnet"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -16,6 +15,10 @@ var _ resource.Resource = (*Setup)(nil)
 
 type Setup struct {
 	client bookrobitnet.BookorbitClient
+}
+
+type setupState struct {
+	NeedsSetup bool `json:"needsSetup"`
 }
 
 // TODO: This should probably just be a user resource that calls setup if required?
@@ -91,13 +94,31 @@ func (e *Setup) Create(ctx context.Context, req resource.CreateRequest, resp *re
 		resp.Diagnostics.AddError("Marshalling data", fmt.Sprintf("%v", err))
 		return
 	}
-	respBody, err := e.client.SendRequest("POST", SETUP_ENDPOINT, marshalledData, map[string]string{
-		"x-setup-token": data.SetupToken.ValueString(),
-	})
+	respBody, err := e.client.SendRequest("GET", SETUP_STATUS_ENDPOINT, nil, nil)
 	if err != nil {
-		resp.Diagnostics.AddError("Running setup",
+		resp.Diagnostics.AddError("Reading setup",
 			fmt.Sprintf("%v: %s\n", err, respBody))
 		return
+	}
+
+	var setupState setupState
+	err = json.Unmarshal([]byte(respBody), &setupState)
+	if err != nil {
+		resp.Diagnostics.AddError("Unmarshalling setup state response",
+			fmt.Sprintf("%v: %s\n", err, respBody))
+		return
+	}
+
+	// Setup is a one way operation. So if the setup already ran we just import the current state
+	if setupState.NeedsSetup {
+		respBody, err := e.client.SendRequest("POST", SETUP_ENDPOINT, marshalledData, map[string]string{
+			"x-setup-token": data.SetupToken.ValueString(),
+		})
+		if err != nil {
+			resp.Diagnostics.AddError("Running setup",
+				fmt.Sprintf("%v: %s\n", err, respBody))
+			return
+		}
 	}
 	data.SetupDone = types.BoolValue(true)
 
@@ -123,9 +144,7 @@ func (e *Setup) Read(ctx context.Context, req resource.ReadRequest, resp *resour
 		return
 	}
 
-	var setupState struct {
-		NeedsSetup bool `json:"needsSetup"`
-	}
+	var setupState setupState
 	err = json.Unmarshal([]byte(respBody), &setupState)
 	if err != nil {
 		resp.Diagnostics.AddError("Unmarshalling setup state response",
